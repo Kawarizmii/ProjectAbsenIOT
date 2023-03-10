@@ -105,7 +105,7 @@ void loop() {
     param1["code_tag"] = content.substring(1);
     String output;
     serializeJson(doc, output);
-   
+   socket.emit("absen", output);
 
     Serial.println("Authorized access");
     Serial.println();
