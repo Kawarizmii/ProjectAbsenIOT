@@ -4,25 +4,17 @@
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 #include <WebSocketsClient.h>
-#include <SocketIOclient.h>
+
 #include <Adafruit_Fingerprint.h>
 #include <Adafruit_Fingerprint.h>
 #include <HardwareSerial.h>
-#include <Adafruit_GFX.h>    // Core graphics library
-#include <Adafruit_ST7735.h> // Hardware-specific library for ST7735
-#include <Adafruit_ST7789.h> // Hardware-specific library for ST7789
 #include <SPI.h>
-#define TFT_CS     33
-#define TFT_RST    14  // you can also connect this to the Arduino reset
-#define TFT_DC     26
-Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS,  TFT_DC, TFT_RST);
-#include <MFRC522.h>
+ 
 #define SS_PIN 15
 #define RST_PIN 16
+#define RelayPin 5;
 
-int RelayPin = 5;
 
-#define BUZZER 5 //buzzer pin
 MFRC522 mfrc522(SS_PIN, RST_PIN);
 
 WiFiMulti WiFiMulti;
@@ -41,7 +33,7 @@ void setup() {
   
   for (uint8_t t = 4; t > 0; t--) {
     Serial.printf("[SETUP] BOOT WAIT %d...\n", t);
-    tft.print("\nSetup Boot...");
+
     Serial.flush();
     delay(1000);
   }
@@ -59,13 +51,10 @@ void setup() {
 
   String ip = WiFi.localIP().toString();
   Serial.printf("[SETUP] WiFi Connected %s\n", ip.c_str());
-  tft.println("\nWifi Terhubung ");
 
-  // server address, port and URL
-  socketIO.begin(HOST , 3000, "/socket.io/?EIO=4");
 
-  // event handler
-  socketIO.onEvent(socketIOEvent);
+socket.beginSSL("https://absensi-c103.up.railway.app/", 3000, "/socket.io/?EIO=4","2E F5 0F 8D D6 33 0F 2E C6 CF 84 3B 00 4B 8A 8F
+5D 1B 04 61");
   
 }
 
@@ -75,7 +64,7 @@ void loop() {
   Serial.println("Put your card to the reader...");
   Serial.println();
   
-  socketIO.loop();
+webSocket.loop();
   
   uint64_t now = millis();
  
@@ -113,7 +102,7 @@ void loop() {
     param1["code_tag"] = content.substring(1);
     String output;
     serializeJson(doc, output);
-    socketIO.sendEVENT(output);
+    socket.emit("absen",output);
     Serial.println(output);
 
     Serial.println("Authorized access");
