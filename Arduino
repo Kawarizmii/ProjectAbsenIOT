@@ -3,8 +3,7 @@
 #include <WiFiMulti.h>
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
-#include <WebSocketsClient.h>
-#include <SocketIOclient.h>
+#include <SocketIoClient.h>
 #include <Adafruit_Fingerprint.h>
 #include <Adafruit_Fingerprint.h>
 #include <HardwareSerial.h>
@@ -14,7 +13,8 @@
 #include <SPI.h>
 
 WiFiMulti WiFiMulti;
-SocketIOclient socketIO;
+
+SocketIoClient webSocket;
 
 void setup() {
 
@@ -22,8 +22,8 @@ void setup() {
   SPI.begin();      
   mfrc522.PCD_Init(); 
   digitalWrite(RelayPin, LOW);
-  USE_SERIAL.begin(9600);
-  USE_SERIAL.setDebugOutput(true);
+  Serial.begin(9600);
+  Serial.setDebugOutput(true);
   Serial2.begin(115200);
   while (!USE_SERIAL);
   delay(100);
@@ -52,11 +52,12 @@ void setup() {
   USE_SERIAL.printf("[SETUP] WiFi Connected %s\n", ip.c_str());
   tft.println("\nWifi Terhubung ");
 
-  // server address, port and URL
-  socketIO.begin(HOST , 3000, "/socket.io/?EIO=4");
-
-  // event handler
-  socketIO.onEvent(socketIOEvent);
+ 
+ 
+   webSocket.on("event", event);
+    webSocket.begin("my.socket-io.server");
+    // use HTTP Basic Authorization this is optional remove if not needed
+    webSocket.setAuthorization("username", "password");
   
 }
 
@@ -66,7 +67,7 @@ void loop() {
   Serial.println("Put your card to the reader...");
   Serial.println();
   
-  socketIO.loop();
+   webSocket.loop();
   
   uint64_t now = millis();
  
@@ -104,8 +105,7 @@ void loop() {
     param1["code_tag"] = content.substring(1);
     String output;
     serializeJson(doc, output);
-    socketIO.sendEVENT(output);
-    USE_SERIAL.println(output);
+   
 
     Serial.println("Authorized access");
     Serial.println();
@@ -123,78 +123,5 @@ void loop() {
   }
 }
 
-uint8_t readnumber(void) {
-  uint8_t num = 0;
 
-  while (num == 0) {
-    while (! USE_SERIAL.available());
-    num = USE_SERIAL.parseInt();
-  }
-  return num;
-}
-
-void socketIOEvent(socketIOmessageType_t type, uint8_t * payload, size_t length) {
-  switch (type) {
-    case sIOtype_DISCONNECT:
-      USE_SERIAL.printf("[IOc] Disconnected!\n");
-      break;
-    case sIOtype_CONNECT:
-      USE_SERIAL.printf("[IOc] Connected to url: %s\n", payload);
-      socketIO.send(sIOtype_CONNECT, "/");
-      break;
-    case sIOtype_EVENT: {
-        char * sptr = NULL;
-        int id = strtol((char *)payload, &sptr, 10);
-        USE_SERIAL.printf("[IOc] get event: %s id: %d\n", payload, id);
-
-        if (id) {
-          payload = (uint8_t *)sptr;
-        }
-
-        DynamicJsonDocument doc(1024);
-        DynamicJsonDocument controlDoc(256);
-        DeserializationError error = deserializeJson(doc, payload, length);
-
-        if (error) {
-          USE_SERIAL.print(F("deserializeJson() failed: "));
-          USE_SERIAL.println(error.c_str());
-          return;
-        }
-
-        String eventName = doc[0];
-
-        USE_SERIAL.printf("[IOc] event name: %s\n", eventName.c_str());
-
-        // Message Includes a ID for a ACK (callback)
-        if (id) {
-          // creat JSON message for Socket.IO (ack)
-          DynamicJsonDocument docOut(1024);
-          JsonArray array = docOut.to<JsonArray>();
-          JsonObject param1 = array.createNestedObject();
-          param1["now"] = millis();
-
-          // JSON to String (serializion)
-          String output;
-          output += id;
-          serializeJson(docOut, output);
-
-          // Send event
-          socketIO.send(sIOtype_ACK, output);
-        }
-      }
-      break;
-    case sIOtype_ACK:
-      USE_SERIAL.printf("[IOc] get ack: %u\n", length);
-      break;
-    case sIOtype_ERROR:
-      USE_SERIAL.printf("[IOc] get error: %u\n", length);
-      break;
-    case sIOtype_BINARY_EVENT:
-      USE_SERIAL.printf("[IOc] get binary: %u\n", length);
-      break;
-    case sIOtype_BINARY_ACK:
-      USE_SERIAL.printf("[IOc] get binary ack: %u\n", length);
-      break;
-  }
-}
 
