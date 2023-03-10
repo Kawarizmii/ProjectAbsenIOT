@@ -1,17 +1,20 @@
+#include <Arduino.h>
 #include <WiFi.h>
+#include <WiFiMulti.h>
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 #include <WebSocketsClient.h>
 #include <SocketIOclient.h>
-SocketIOclient socketIO;
-int RelayPin = 4;
-uint8_t fingerID;
+#include <Adafruit_Fingerprint.h>
+#include <Adafruit_Fingerprint.h>
+#include <HardwareSerial.h>
+#include <Adafruit_GFX.h>    // Core graphics library
+#include <Adafruit_ST7735.h> // Hardware-specific library for ST7735
+#include <Adafruit_ST7789.h> // Hardware-specific library for ST7789
 #include <SPI.h>
-#include <MFRC522.h>
-#define SS_PIN 15
-#define RST_PIN 16
-MFRC522 mfrc522(SS_PIN, RST_PIN);
-#define USE_SERIAL Serial
+
+WiFiMulti WiFiMulti;
+SocketIOclient socketIO;
 
 void setup() {
 
@@ -66,23 +69,7 @@ void loop() {
   socketIO.loop();
   
   uint64_t now = millis();
-  if (digitalRead(2) == HIGH) {
-    digitalWrite(4, HIGH);
-    DynamicJsonDocument doc(1024);
-    JsonArray array = doc.to<JsonArray>();
-    array.add("absen");
-    // add payload (parameters) for the event
-    JsonObject param1 = array.createNestedObject();
-    param1["msg"] = "halo from arduino";
-    // JSON to String (serializion)
-    String output;
-    serializeJson(doc, output);
-    // Send event
-    socketIO.sendEVENT(output);
-    // Print JSON for debugging
-    USE_SERIAL.println(output);
-  }
-  
+ 
   if ( ! mfrc522.PICC_IsNewCardPresent()) 
   {
     return;
@@ -109,6 +96,17 @@ void loop() {
   
   if(content.substring(1) == "43 D4 CA 1B" ||content.substring(1) == "A4 B9 23 07") //change here the UID of the card/cards that you want to give access
   {
+   
+    DynamicJsonDocument doc(1024);
+    JsonArray array = doc.to<JsonArray>();
+    array.add("record");
+    JsonObject param1 = array.createNestedObject();
+    param1["code_tag"] = content.substring(1);
+    String output;
+    serializeJson(doc, output);
+    socketIO.sendEVENT(output);
+    USE_SERIAL.println(output);
+
     Serial.println("Authorized access");
     Serial.println();
     digitalWrite(RelayPin, HIGH);
@@ -167,17 +165,6 @@ void socketIOEvent(socketIOmessageType_t type, uint8_t * payload, size_t length)
 
         USE_SERIAL.printf("[IOc] event name: %s\n", eventName.c_str());
 
-        controlValue = eventName.c_str();
-        DeserializationError controlJSON = deserializeJson(controlDoc, controlValue);
-
-        String Code_Tag = controlDoc["code_tag"];
-        String Record_Time = controlDoc["record_time"];
-        String Username = controlDoc["username"];
-        
-        if(Code_Tag != NULL){
-          rfidfungsi(Code_Tag, Record_Time, Username);
-        }
-
         // Message Includes a ID for a ACK (callback)
         if (id) {
           // creat JSON message for Socket.IO (ack)
@@ -211,23 +198,3 @@ void socketIOEvent(socketIOmessageType_t type, uint8_t * payload, size_t length)
   }
 }
 
-void rfidfungsi(string Code_Tag, string Record_Time, string Username)
-{
-	  DynamicJsonDocument doc(1024);
-    JsonArray array = doc.to<JsonArray>();
-    array.add("record");
-    // add payload (parameters) for the event
-    JsonObject param1 = array.createNestedObject();
-    param1["Code_Tag"] = Code_Tag;
-    JsonObject param2 = array.createNestedObject();
-    param2["Record_Time"] = Record_Time;
-    JsonObject param3 = array.createNestedObject();
-    param3[" Username"] =  Username;
-    // JSON to String (serializion)
-    String output;
-    serializeJson(doc, output);
-    // Send event
-    socketIO.sendEVENT(output);
-    // Print JSON for debugging
-    USE_SERIAL.println(output);
-}
