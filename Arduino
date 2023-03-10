@@ -5,6 +5,7 @@
 #include <SocketIOclient.h>
 SocketIOclient socketIO;
 int RelayPin = 4;
+uint8_t fingerID;
 #include <SPI.h>
 #include <MFRC522.h>
 #define SS_PIN 15
@@ -20,21 +21,22 @@ void setup() {
   digitalWrite(RelayPin, LOW);
   USE_SERIAL.begin(9600);
   USE_SERIAL.setDebugOutput(true);
-  Serial2.begin(115200)
+  Serial2.begin(115200);
   while (!USE_SERIAL);
   delay(100);
   
-  WiFi.begin(ssid, pass);
-
   for (uint8_t t = 4; t > 0; t--) {
     USE_SERIAL.printf("[SETUP] BOOT WAIT %d...\n", t);
-    tft.println("\nSetup Boot...");
+    tft.print("\nSetup Boot...");
     USE_SERIAL.flush();
     delay(1000);
   }
-  const char *ssid = "SKYRIM";
-  const char *pass = "WINTERHOLD1809";
-  const char *HOST = "192.168.1.7";
+  
+  WiFi.begin(ssid, pass);
+
+  const char *ssid = "SSS";
+  const char *pass = "Kawarizmi";
+  const char *HOST = "104.196.232.237";
 
   WiFi.begin(ssid, pass);
 
@@ -52,7 +54,7 @@ void setup() {
 
   // event handler
   socketIO.onEvent(socketIOEvent);
-  }
+  
 }
 
 unsigned long messageTimestamp = 0;
@@ -173,7 +175,7 @@ void socketIOEvent(socketIOmessageType_t type, uint8_t * payload, size_t length)
         String Username = controlDoc["username"];
         
         if(Code_Tag != NULL){
-          rfid_fungsi(Code_Tag, Record_Time, Username);
+          rfidfungsi(Code_Tag, Record_Time, Username);
         }
 
         // Message Includes a ID for a ACK (callback)
@@ -194,7 +196,6 @@ void socketIOEvent(socketIOmessageType_t type, uint8_t * payload, size_t length)
         }
       }
       break;
-
     case sIOtype_ACK:
       USE_SERIAL.printf("[IOc] get ack: %u\n", length);
       break;
@@ -210,11 +211,11 @@ void socketIOEvent(socketIOmessageType_t type, uint8_t * payload, size_t length)
   }
 }
 
-void irCommand(string Code_Tag, string Record_Time, string Username)
+void rfidfungsi(string Code_Tag, string Record_Time, string Username)
 {
 	  DynamicJsonDocument doc(1024);
     JsonArray array = doc.to<JsonArray>();
-    array.add("Masuk");
+    array.add("record");
     // add payload (parameters) for the event
     JsonObject param1 = array.createNestedObject();
     param1["Code_Tag"] = Code_Tag;
